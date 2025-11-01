@@ -32,9 +32,9 @@ Documentation = "https://github.com/rh6423/ComfyUI-QuickSize/wiki"
 
 [tool.comfy]
 PublisherId = "rh6423"
-DisplayName = "ComfyUI QuickSize"
+DisplayName = "QuickSize for ComfyUI"
 Repository = "https://github.com/rh6423/ComfyUI-QuickSize"
-Icon = ""     # you can later replace this with a hosted PNG link
+Icon = ""     
 Tags = []
 
 includes = []
