@@ -34,7 +34,7 @@ Documentation = "https://github.com/rh6423/ComfyUI-QuickSize/wiki"
 PublisherId = "rh6423"
 DisplayName = "QuickSize for ComfyUI"
 Repository = "https://github.com/rh6423/ComfyUI-QuickSize"
-Icon = ""     
+Icon = "QuicksizeLogo.png"     
 Tags = []
 
 includes = []
