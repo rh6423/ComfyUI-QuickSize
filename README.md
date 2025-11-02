@@ -15,6 +15,10 @@ Each node outputs `width` and `height` integers based on a predefined aspect rat
 
 ---
 
+![Alt text](quicksize_nodes.png "node screenshots")
+
+---
+
 ## 📦 Installation
 
 ### Option 1 — Manual
