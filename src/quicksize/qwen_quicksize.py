@@ -55,7 +55,7 @@ class QuickSizeQwenNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "megapixels": (["1.0", "1.5", "2.0"], {"default": "1.0"}),
+                "megapixels": (["1.0", "1.5"], {"default": "1.0"}),
                 #"preset": (preset_items, {"default": cls._PRESET_LABELS_1P0["1:1"]}),
                 "preset": (cls.ASPECT_KEYS, {"default": "1:1"}),  # ratios only
                 "orientation": (["horizontal", "vertical"], {"default": "horizontal"}),
