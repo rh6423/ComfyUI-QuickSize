@@ -1,5 +1,7 @@
 # QuickSize for ComfyUI
 
+<img src="QuicksizeLogo.png" width="300">
+
 **QuickSize** provides easy-to-use dropdown selectors for common image resolutions across multiple diffusion models in [ComfyUI](https://comfy.org/).  
 Each node outputs `width` and `height` integers based on a predefined aspect ratio, megapixel tier (or multiplier), and orientation (horizontal or vertical). No more keeping track of native image dimensions for different models.
 
