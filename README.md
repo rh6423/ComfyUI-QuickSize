@@ -62,24 +62,13 @@ Each model-specific node is tuned to its model’s recommended resolution ranges
 
 ---
 
-## 🧰 Development
+## 🧰 Size presets
 
 Each node is implemented as an individual Python file under:
 
-src/resolution_list/
+src/quicksize/
 
-To add a new model:
-
-1. Create `src/resolution_list/<model>_reslist.py`.  
-2. Define a unique class (e.g., `QuickSizeMyModelNode`).  
-3. Add it to your top-level `__init__.py`:
-
-   from .src.resolution_list.mymodel_reslist import QuickSizeMyModelNode
-
-   NODE_CLASS_MAPPINGS["QuickSizeMyModelNode"] = QuickSizeMyModelNode  
-   NODE_DISPLAY_NAME_MAPPINGS["QuickSizeMyModelNode"] = "QuickSize (MyModel)"
-
-4. Restart ComfyUI.
+The pixel resolutions are inside each node's .py file. More user friendly resolution lists are in the backlog right now.
 
 ---
 
