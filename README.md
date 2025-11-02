@@ -32,7 +32,7 @@ Each node outputs `width` and `height` integers based on a predefined aspect rat
 ```
 3. Restart ComfyUI.
 
-### Option 2 *(coming soon once I get this registered)* — ComfyUI Manager
+### Option 2 — ComfyUI Manager
 Search for **“QuickSize”** in the ComfyUI Node Registry and click **Install**.
 
 ---
