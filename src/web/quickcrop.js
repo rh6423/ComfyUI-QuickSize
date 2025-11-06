@@ -64,19 +64,25 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
 
   // ---------- UI core ----------
   function ensureButton(node) {
-    try {
-      if (!node?.addWidget) return;
-      if (node.widgets?.find?.((w) => w.name === BTN_SENTINEL)) return;
-      const btn = node.addWidget("button", "Edit Crop", null, () => {
-        openEditor(node);
-      });
-      btn.name = BTN_SENTINEL;
-      btn.serialize = false;
-      log("Injected Edit Crop button.");
-    } catch (e) {
-      err("Failed to add button:", e);
-    }
+  try {
+    if (!node?.addWidget) return;
+    if (node.widgets?.find?.((w) => w.name === BTN_SENTINEL)) return;
+
+    // Create the visible button
+    const btn = node.addWidget("button", "Visual editor", null, () => {
+      openEditor(node);
+    });
+
+    // Keep an internal sentinel name so it won't duplicate
+    btn.name = BTN_SENTINEL;      // internal unique ID
+    btn.label = "Visual editor";  // visible label
+    btn.serialize = false;
+
+    log("Injected Visual editor button.");
+  } catch (e) {
+    err("Failed to add button:", e);
   }
+}
 
   async function openEditor(node) {
     // current numeric values
