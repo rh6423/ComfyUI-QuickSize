@@ -1,18 +1,14 @@
-# __init__.py  (repo root)
-# ComfyUI-QuickSize — Node registration aggregator
+# ComfyUI-QuickSize/__init__.py
 
 from .src.quicksize import (
-    NODE_CLASS_MAPPINGS as _BASE_NODES,
-    NODE_DISPLAY_NAME_MAPPINGS as _BASE_NAMES,
+    NODE_CLASS_MAPPINGS as _NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _NAMES,
 )
 
-WEB_DIRECTORY = "./web"
+# Point to your actual web folder:
+WEB_DIRECTORY = "./src/web"
 
-NODE_CLASS_MAPPINGS = {}
-NODE_DISPLAY_NAME_MAPPINGS = {}
-NODE_CLASS_MAPPINGS.update(_BASE_NODES)
-NODE_DISPLAY_NAME_MAPPINGS.update(_BASE_NAMES)
+NODE_CLASS_MAPPINGS = dict(_NODES)
+NODE_DISPLAY_NAME_MAPPINGS = dict(_NAMES)
 
-# If you export __all__, include WEB_DIRECTORY so Comfy detects it:
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
-
