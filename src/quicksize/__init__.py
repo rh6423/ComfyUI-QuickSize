@@ -1,8 +1,25 @@
 # src/quicksize/__init__.py
+# QuickSize core node registry
 
-from .quicksize_node import (
-    NODE_CLASS_MAPPINGS as _QS_NODES,
-    NODE_DISPLAY_NAME_MAPPINGS as _QS_NAMES,
+from .flux_quicksize import (
+    NODE_CLASS_MAPPINGS as _FLUX_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _FLUX_NAMES,
+)
+from .qwen_quicksize import (
+    NODE_CLASS_MAPPINGS as _QWEN_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _QWEN_NAMES,
+)
+from .sd15_quicksize import (
+    NODE_CLASS_MAPPINGS as _SD15_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _SD15_NAMES,
+)
+from .sdxl_quicksize import (
+    NODE_CLASS_MAPPINGS as _SDXL_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _SDXL_NAMES,
+)
+from .wan_quicksize import (
+    NODE_CLASS_MAPPINGS as _WAN_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _WAN_NAMES,
 )
 from .quickcrop_node import (
     NODE_CLASS_MAPPINGS as _QC_NODES,
@@ -12,11 +29,23 @@ from .quickcrop_node import (
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
-# existing QuickSize nodes
-NODE_CLASS_MAPPINGS.update(_QS_NODES)
-NODE_DISPLAY_NAME_MAPPINGS.update(_QS_NAMES)
+# merge all submodules
+NODE_CLASS_MAPPINGS.update(_FLUX_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_FLUX_NAMES)
 
-# new QuickCrop node
+NODE_CLASS_MAPPINGS.update(_QWEN_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_QWEN_NAMES)
+
+NODE_CLASS_MAPPINGS.update(_SD15_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_SD15_NAMES)
+
+NODE_CLASS_MAPPINGS.update(_SDXL_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_SDXL_NAMES)
+
+NODE_CLASS_MAPPINGS.update(_WAN_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_WAN_NAMES)
+
+# QuickCrop
 NODE_CLASS_MAPPINGS.update(_QC_NODES)
 NODE_DISPLAY_NAME_MAPPINGS.update(_QC_NAMES)
 
