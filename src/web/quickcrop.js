@@ -397,28 +397,33 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     // Draw "?" in title bar
     const prevDraw = nodeType.prototype.onDrawForeground;
     nodeType.prototype.onDrawForeground = function (ctx) {
-      prevDraw?.call(this, ctx);
+  prevDraw?.call(this, ctx);
 
-      const th = getTitleHeight();
-      const r = 8, pad = 6;
-      const x = this.size[0] - (r + pad);
-      const y = Math.floor(th / 2);
+  const th = getTitleHeight();
+  const r = 7;            // smaller radius
+  const pad = 6;          // right padding
+  const x = this.size[0] - (r + pad);
+  const y = Math.floor(th / 2) + 1; // vertically center in title
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = "#3aa0ff";
-      ctx.fill();
+  // --- ensure it's drawn BEFORE connectors (z-index-ish trick) ---
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over"; // force on top
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#3aa0ff";
+  ctx.fill();
 
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 12px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("?", x, y + 0.5);
-      ctx.restore();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 12px Inter, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("?", x, y + 0.3);
+  ctx.restore();
 
-      this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url };
-    };
+  // hitbox: only the title bar area
+  this.__qs_help_hit = { x: x - r - 2, y: 0, w: r * 2 + pad + 4, h: th, url };
+};
+
 
     // Click handler in title band
     const prevMouseDown = nodeType.prototype.onMouseDown;
