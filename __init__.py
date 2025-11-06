@@ -1,4 +1,5 @@
-# __init__.py (repo root)
+# __init__.py  (repo root)
+# ComfyUI-QuickSize — Node registration aggregator
 
 from .src.quicksize import (
     NODE_CLASS_MAPPINGS as _BASE_NODES,
