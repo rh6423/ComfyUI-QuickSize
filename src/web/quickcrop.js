@@ -356,43 +356,94 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
   });
 })();
 // --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
+// --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
+// Uses both: immediate patch of registered nodes + hook for future registrations.
+// (No new imports here.)
 
 (function () {
-  const EXT = "QuickSize.Help";
-  const TARGETS = [
-    { classKey: "QuickSizeFluxNode", displayName: "Quick Size (Flux)" },
-    { classKey: "QuickCropNode",     displayName: "QuickCrop" },
-    // add more here:
-    // { classKey: "QuickSizeSDXLNode", displayName: "Quick Size (SDXL)" },
-    // { classKey: "QuickSizeSD15Node", displayName: "Quick Size (SD1.5)" },
-    // { classKey: "QuickSizeWANNode",  displayName: "Quick Size (WAN)" },
-    // { classKey: "QuickSizeQwenNode", displayName: "Quick Size (Qwen)" },
-  ];
+  const EXT_NAME = "QuickSize.Help";
+  const HELPABLE = new Set([
+    "QuickSizeFluxNode",
+    "QuickCropNode",
+    // add others: "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
+  ]);
 
-  const byClass = new Set(TARGETS.map(t => t.classKey));
-  const byName  = new Set(TARGETS.map(t => t.displayName));
+  const log = (...a) => console.log(`[${EXT_NAME}]`, ...a);
+  const warn = (...a) => console.warn(`[${EXT_NAME}]`, ...a);
 
-  function matchesTarget(nodeData) {
-    return byClass.has(nodeData?.comfyClass) || byName.has(nodeData?.name);
+  function docUrlFor(nodeKey) {
+    return `/extensions/ComfyUI-QuickSize/docs/${encodeURIComponent(nodeKey)}.md`;
   }
 
-  function docUrlFor(nodeData) {
-    const key = nodeData?.comfyClass || nodeData?.name;
-    // docs are named by class key — ensure you created e.g. docs/QuickSizeFluxNode.md
-    return `/extensions/ComfyUI-QuickSize/docs/${key}.md`;
-  }
-
+  // Title-height helper
   function getTitleHeight() {
     const LG = window.LiteGraph;
     return (LG && LG.NODE_TITLE_HEIGHT) ? LG.NODE_TITLE_HEIGHT : 24;
   }
 
+  function patchNodeType(nodeKey, nodeType) {
+    if (!HELPABLE.has(nodeKey) || !nodeType || nodeType.__qs_help_patched) return;
+    nodeType.__qs_help_patched = true;
+
+    const url = docUrlFor(nodeKey);
+
+    // Context menu item
+    const prevMenu = nodeType.prototype.getExtraMenuOptions;
+    nodeType.prototype.getExtraMenuOptions = function (_, options) {
+      prevMenu?.call(this, _, options);
+      options.push({ content: "Help…", callback: () => openHelp(url, this) });
+    };
+
+    // Draw "?" in title bar
+    const prevDraw = nodeType.prototype.onDrawForeground;
+    nodeType.prototype.onDrawForeground = function (ctx) {
+      prevDraw?.call(this, ctx);
+
+      const th = getTitleHeight();
+      const r = 8, pad = 6;
+      const x = this.size[0] - (r + pad);
+      const y = Math.floor(th / 2);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = "#3aa0ff";
+      ctx.fill();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 12px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("?", x, y + 0.5);
+      ctx.restore();
+
+      this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url };
+    };
+
+    // Click handler in title band
+    const prevMouseDown = nodeType.prototype.onMouseDown;
+    nodeType.prototype.onMouseDown = function (e, pos, gc) {
+      const hit = this.__qs_help_hit;
+      if (hit) {
+        const [px, py] = pos;
+        if (px >= hit.x && px <= hit.x + hit.w && py >= hit.y && py <= hit.h) {
+          openHelp(hit.url, this);
+          return true;
+        }
+      }
+      return prevMouseDown ? prevMouseDown.call(this, e, pos, gc) : false;
+    };
+
+    log(`patched ${nodeKey}`);
+  }
+
+  // Prefer built-in Docs pane; fallback to opening MD
   function openHelp(url, node) {
     try {
       if (app?.ui?.showNodeHelp && node) {
         const gc = app.canvas;
         if (gc && !node.selected) gc.selectNode(node, false);
-        app.ui.showNodeHelp(); // right-side Docs pane
+        app.ui.showNodeHelp();
       } else {
         window.open(url, "_blank");
       }
@@ -401,59 +452,35 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     }
   }
 
+  // 1) Patch anything already registered
+  function patchExisting() {
+    const LG = window.LiteGraph;
+    if (!LG || !LG.registered_node_types) {
+      warn("LiteGraph not ready yet; will patch after setup.");
+      return;
+    }
+    for (const [key, nt] of Object.entries(LG.registered_node_types)) {
+      // keys look like "category/QuickSizeFluxNode" or "QuickSizeFluxNode"
+      const nodeKey = key.split("/").pop();
+      patchNodeType(nodeKey, nt);
+    }
+  }
+
+  // 2) Hook future registrations via Comfy’s extension API
   app.registerExtension({
-    name: EXT,
-    beforeRegisterNodeDef(nodeType, nodeData) {
-      if (!matchesTarget(nodeData)) return;
-
-      const url = docUrlFor(nodeData);
-      console.log(`[${EXT}] binding to:`, nodeData?.name, "/", nodeData?.comfyClass, "->", url);
-
-      // Right-click menu item
-      const prevMenu = nodeType.prototype.getExtraMenuOptions;
-      nodeType.prototype.getExtraMenuOptions = function (_, options) {
-        prevMenu?.call(this, _, options);
-        options.push({ content: "Help…", callback: () => openHelp(url, this) });
-      };
-
-      // Draw "?" in the node title bar
-      const prevDraw = nodeType.prototype.onDrawForeground;
-      nodeType.prototype.onDrawForeground = function (ctx) {
-        prevDraw?.call(this, ctx);
-
-        const th = getTitleHeight();
-        const r = 8, pad = 6;
-        const x = this.size[0] - (r + pad);
-        const y = Math.floor(th / 2);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = "#3aa0ff";
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.font = "bold 12px Inter, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("?", x, y + 0.5);
-        ctx.restore();
-
-        this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url };
-      };
-
-      // Click handler (title bar only)
-      const prevMouseDown = nodeType.prototype.onMouseDown;
-      nodeType.prototype.onMouseDown = function (e, pos, canvas) {
-        const hit = this.__qs_help_hit;
-        if (hit) {
-          const [px, py] = pos;
-          if (px >= hit.x && px <= hit.x + hit.w && py >= hit.y && py <= hit.h) {
-            openHelp(hit.url, this);
-            return true;
-          }
-        }
-        return prevMouseDown ? prevMouseDown.call(this, e, pos, canvas) : false;
-      };
+    name: EXT_NAME,
+    setup() {
+      log("loaded; patching existing types…");
+      patchExisting();
+    },
+    // This will run for nodes registered after our extension loads
+    afterRegisterNodeDef(nodeType, nodeData) {
+      const nodeKey = nodeData?.name || nodeData?.comfyClass;
+      if (nodeKey) patchNodeType(nodeKey, nodeType);
     },
   });
+
+  // 3) Also attempt a delayed patch in case LiteGraph was late to init
+  setTimeout(patchExisting, 0);
 })();
+
