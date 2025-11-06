@@ -357,9 +357,7 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
 })();
 // --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
 // --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
-// Uses both: immediate patch of registered nodes + hook for future registrations.
-// (No new imports here.)
-
+// v0.2.0-help3
 (function () {
   const EXT_NAME = "QuickSize.Help";
   const HELPABLE = new Set([
@@ -368,17 +366,55 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     // add others: "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
   ]);
 
-  const log = (...a) => console.log(`[${EXT_NAME}]`, ...a);
+  const log  = (...a) => console.log(`[${EXT_NAME}]`, ...a);
   const warn = (...a) => console.warn(`[${EXT_NAME}]`, ...a);
 
   function docUrlFor(nodeKey) {
     return `/extensions/ComfyUI-QuickSize/docs/${encodeURIComponent(nodeKey)}.md`;
   }
 
-  // Title-height helper
-  function getTitleHeight() {
+  function titleHeight() {
     const LG = window.LiteGraph;
     return (LG && LG.NODE_TITLE_HEIGHT) ? LG.NODE_TITLE_HEIGHT : 24;
+  }
+
+  function drawIcon(ctx, node, url) {
+    const th = titleHeight();
+    const r  = 7;
+    const pad = 6;
+    const x  = node.size[0] - (r + pad);
+    const y  = Math.floor(th / 2) + 1;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#3aa0ff";
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", x, y + 0.3);
+    ctx.restore();
+
+    // clickable only in the title band
+    node.__qs_help_hit = { x: x - r - 2, y: 0, w: r * 2 + pad + 4, h: th, url };
+  }
+
+  function openHelp(url, node) {
+    try {
+      if (app?.ui?.showNodeHelp && node) {
+        const gc = app.canvas;
+        if (gc && !node.selected) gc.selectNode(node, false);
+        app.ui.showNodeHelp();
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch {
+      window.open(url, "_blank");
+    }
   }
 
   function patchNodeType(nodeKey, nodeType) {
@@ -387,45 +423,30 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
 
     const url = docUrlFor(nodeKey);
 
-    // Context menu item
+    // Right-click menu item
     const prevMenu = nodeType.prototype.getExtraMenuOptions;
     nodeType.prototype.getExtraMenuOptions = function (_, options) {
       prevMenu?.call(this, _, options);
       options.push({ content: "Help…", callback: () => openHelp(url, this) });
     };
 
-    // Draw "?" in title bar
-    const prevDraw = nodeType.prototype.onDrawForeground;
-    nodeType.prototype.onDrawForeground = function (ctx) {
-  prevDraw?.call(this, ctx);
+    // Prefer a dedicated title-bar draw hook if available
+    const prevTitle = nodeType.prototype.onDrawTitleBar;
+    if (typeof prevTitle === "function") {
+      nodeType.prototype.onDrawTitleBar = function (ctx) {
+        prevTitle?.call(this, ctx);
+        drawIcon(ctx, this, url);
+      };
+    } else {
+      // Fallback: draw in foreground, positioned in the title band
+      const prevDraw = nodeType.prototype.onDrawForeground;
+      nodeType.prototype.onDrawForeground = function (ctx) {
+        prevDraw?.call(this, ctx);
+        drawIcon(ctx, this, url);
+      };
+    }
 
-  const th = getTitleHeight();
-  const r = 7;            // smaller radius
-  const pad = 6;          // right padding
-  const x = this.size[0] - (r + pad);
-  const y = Math.floor(th / 2) + 1; // vertically center in title
-
-  // --- ensure it's drawn BEFORE connectors (z-index-ish trick) ---
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over"; // force on top
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = "#3aa0ff";
-  ctx.fill();
-
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 12px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("?", x, y + 0.3);
-  ctx.restore();
-
-  // hitbox: only the title bar area
-  this.__qs_help_hit = { x: x - r - 2, y: 0, w: r * 2 + pad + 4, h: th, url };
-};
-
-
-    // Click handler in title band
+    // Click handler (title-band only)
     const prevMouseDown = nodeType.prototype.onMouseDown;
     nodeType.prototype.onMouseDown = function (e, pos, gc) {
       const hit = this.__qs_help_hit;
@@ -442,22 +463,7 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     log(`patched ${nodeKey}`);
   }
 
-  // Prefer built-in Docs pane; fallback to opening MD
-  function openHelp(url, node) {
-    try {
-      if (app?.ui?.showNodeHelp && node) {
-        const gc = app.canvas;
-        if (gc && !node.selected) gc.selectNode(node, false);
-        app.ui.showNodeHelp();
-      } else {
-        window.open(url, "_blank");
-      }
-    } catch {
-      window.open(url, "_blank");
-    }
-  }
-
-  // 1) Patch anything already registered
+  // Patch already-registered nodes
   function patchExisting() {
     const LG = window.LiteGraph;
     if (!LG || !LG.registered_node_types) {
@@ -465,27 +471,25 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
       return;
     }
     for (const [key, nt] of Object.entries(LG.registered_node_types)) {
-      // keys look like "category/QuickSizeFluxNode" or "QuickSizeFluxNode"
       const nodeKey = key.split("/").pop();
       patchNodeType(nodeKey, nt);
     }
   }
 
-  // 2) Hook future registrations via Comfy’s extension API
+  // Hook both now and future registrations
   app.registerExtension({
     name: EXT_NAME,
     setup() {
-      log("loaded; patching existing types…");
+      log("loaded v0.2.0-help3; patching existing types…");
       patchExisting();
     },
-    // This will run for nodes registered after our extension loads
     afterRegisterNodeDef(nodeType, nodeData) {
       const nodeKey = nodeData?.name || nodeData?.comfyClass;
       if (nodeKey) patchNodeType(nodeKey, nodeType);
     },
   });
 
-  // 3) Also attempt a delayed patch in case LiteGraph was late to init
+  // In case LiteGraph is late
   setTimeout(patchExisting, 0);
 })();
 
