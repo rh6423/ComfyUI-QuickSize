@@ -1,25 +1,22 @@
-# src/resolution_list/__init__.py
-from .flux_quicksize import QuickSizeFluxNode
-from .qwen_quicksize import QuickSizeQwenNode
-from .wan_quicksize import QuickSizeWanNode
-from .sd15_quicksize import QuickSizeSD15Node
-from .sdxl_quicksize import QuickSizeSDXLNode
+# src/quicksize/__init__.py
 
-NODE_CLASS_MAPPINGS = {
-    "QuickSizeFluxNode": QuickSizeFluxNode,
-    "QuickSizeQwenNode": QuickSizeQwenNode,
-    "QuickSizeWanNode": QuickSizeWanNode,
-    "QuickSizeSD15Node": QuickSizeSD15Node,
-    "QuickSizeSDXLNode": QuickSizeSDXLNode,
-}
+from .quicksize_node import (
+    NODE_CLASS_MAPPINGS as _QS_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _QS_NAMES,
+)
+from .quickcrop_node import (
+    NODE_CLASS_MAPPINGS as _QC_NODES,
+    NODE_DISPLAY_NAME_MAPPINGS as _QC_NAMES,
+)
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "QuickSizeFluxNode": "Quick Size (Flux)",
-    "QuickSizeQwenNode": "Quick Size (Qwen)",
-    "QuickSizeWanNode": "Quick Size (Wan)",
-    "QuickSizeSD15Node": "Quick Size (SD15)",
-    "QuickSizeSDXLNode": "Quick Size (SDXL)",
-}
+NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}
 
-__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
+# existing QuickSize nodes
+NODE_CLASS_MAPPINGS.update(_QS_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_QS_NAMES)
+
+# new QuickCrop node
+NODE_CLASS_MAPPINGS.update(_QC_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(_QC_NAMES)
 
