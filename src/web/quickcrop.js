@@ -355,41 +355,50 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     },
   });
 })();
-// --- QuickSize per-node HELP hook -------------------------------------------
+// --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
+import { app } from "/scripts/app.js";
+
 app.registerExtension({
   name: "QuickSize.Help",
-  init(app_) {},
-  async setup() {},
-  beforeRegisterNodeDef(nodeType, nodeData, app_) {
+  beforeRegisterNodeDef(nodeType, nodeData) {
     const HELPABLE = new Set([
       "QuickSizeFluxNode",
       "QuickCropNode",
-      // "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
+      // add others: "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
     ]);
     if (!HELPABLE.has(nodeData?.name)) return;
 
     const className = nodeData.name;
     const docUrl = `/extensions/ComfyUI-QuickSize/docs/${className}.md`;
 
-    // Add “Help…” to the node's context (right-click) menu
+    // Context menu item
     const prevMenu = nodeType.prototype.getExtraMenuOptions;
-    nodeType.prototype.getExtraMenuOptions = function(_, options) {
-      if (prevMenu) prevMenu.call(this, _, options);
-      options.push({
-        content: "Help…",
-        callback: () => openHelp(docUrl, this)
-      });
+    nodeType.prototype.getExtraMenuOptions = function (_, options) {
+      prevMenu?.call(this, _, options);
+      options.push({ content: "Help…", callback: () => openHelp(docUrl, this) });
     };
 
-    // Draw a small clickable “?” in the node header (top-right)
-    const prevDraw = nodeType.prototype.onDrawForeground;
-    nodeType.prototype.onDrawForeground = function(ctx) {
-      if (prevDraw) prevDraw.call(this, ctx);
-      const r = 8; // radius of hit area
-      const x = this.size[0] - 14, y = 14;
+    // Utility: title height
+    function getTitleHeight() {
+      // LiteGraph usually exposes NODE_TITLE_HEIGHT; fall back to 24
+      const LG = window.LiteGraph;
+      return (LG && LG.NODE_TITLE_HEIGHT) ? LG.NODE_TITLE_HEIGHT : 24;
+    }
 
-      // circle
+    // Draw "?" in the title bar (top-right)
+    const prevDraw = nodeType.prototype.onDrawForeground;
+    nodeType.prototype.onDrawForeground = function (ctx) {
+      prevDraw?.call(this, ctx);
+
+      const th = getTitleHeight();
+      const r = 8;               // icon radius
+      const pad = 6;             // right padding
+      const x = this.size[0] - (r + pad);
+      const y = Math.floor(th / 2);
+
+      // Only draw when not collapsed; collapsed nodes still have a header though
       ctx.save();
+      // background circle
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fillStyle = "#3aa0ff";
@@ -402,42 +411,37 @@ app.registerExtension({
       ctx.fillText("?", x, y + 0.5);
       ctx.restore();
 
-      // store clickable rect for hit test
-      this.__qs_help_hit = {x: x - r, y: y - r, w: r * 2, h: r * 2, url: docUrl};
+      // store a hit zone strictly inside the title bar
+      this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url: docUrl };
     };
 
-    // Click handler for the header “?”
+    // Click handler: only fire if clicking inside the title bar hit zone
     const prevMouseDown = nodeType.prototype.onMouseDown;
-    nodeType.prototype.onMouseDown = function(e, pos, graphcanvas) {
-      if (this.__qs_help_hit) {
-        const [hx, hy, hw, hh] = [this.__qs_help_hit.x, this.__qs_help_hit.y, this.__qs_help_hit.w, this.__qs_help_hit.h];
-        if (pos[0] >= hx && pos[0] <= hx + hw && pos[1] >= hy && pos[1] <= hy + hh) {
-          openHelp(this.__qs_help_hit.url, this);
+    nodeType.prototype.onMouseDown = function (e, pos, graphcanvas) {
+      const hit = this.__qs_help_hit;
+      if (hit) {
+        const [px, py] = pos; // local to node
+        if (px >= hit.x && px <= hit.x + hit.w && py >= hit.y && py <= hit.h) {
+          openHelp(hit.url, this);
           return true; // consume event
         }
       }
-      if (prevMouseDown) return prevMouseDown.call(this, e, pos, graphcanvas);
-      return false;
+      return prevMouseDown ? prevMouseDown.call(this, e, pos, graphcanvas) : false;
     };
   },
 });
 
-// Prefer opening the built-in Docs panel if present; fallback to new tab
+// Prefer built-in Docs panel if present; fall back to opening the MD file
 function openHelp(url, node) {
   try {
-    // New UI: show the “Docs” panel for the selected node if available
     if (app?.ui?.showNodeHelp && node) {
-      // Ensure the node is selected so help panel binds to it
-      const graphcanvas = app.canvas;
-      if (graphcanvas && !node.selected) {
-        graphcanvas.selectNode(node, false);
-      }
-      app.ui.showNodeHelp();
+      const gc = app.canvas;
+      if (gc && !node.selected) gc.selectNode(node, false);
+      app.ui.showNodeHelp(); // opens right-side Docs pane
     } else {
       window.open(url, "_blank");
     }
-  } catch (err) {
-    console.warn("[QuickSize.Help] Docs panel not available, opening MD:", err);
+  } catch {
     window.open(url, "_blank");
   }
 }
