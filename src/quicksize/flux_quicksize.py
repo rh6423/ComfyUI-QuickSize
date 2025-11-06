@@ -80,3 +80,38 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "QuickSizeFluxNode": "Quick Size (Flux)",
 }
+
+# --- (keep your existing QuickSizeFluxNode code above) ---
+
+def _fmt_table(title: str, tbl: dict[str, tuple[int, int]]) -> str:
+    lines = [title]
+    for aspect in ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "21:9"]:
+        if aspect in tbl:
+            w, h = tbl[aspect]
+            lines.append(f"  • {aspect}: {w} × {h}")
+    return "\n".join(lines)
+
+# ---- ComfyUI registration ----
+NODE_CLASS_MAPPINGS = {
+    "QuickSizeFluxNode": QuickSizeFluxNode,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "QuickSizeFluxNode": "Quick Size (Flux)",
+}
+
+# 👇 Add this block to enable the standard “?” help panel on the node
+_HELP_TEXT = (
+    "Quick Size (Flux)\n"
+    "Model: Flux\n\n"
+    + _fmt_table("1× resolutions", QuickSizeFluxNode.RES_1X) + "\n\n"
+    + _fmt_table("1.5× resolutions", QuickSizeFluxNode.RES_15X) + "\n\n"
+    "Usage:\n"
+    "• Choose an aspect in “preset”.\n"
+    "• Pick orientation (horizontal keeps width ≥ height; vertical swaps).\n"
+    "• Toggle 1.5× for the larger tier (matches SDXL design language).\n"
+)
+
+NODE_HELP = {
+    "QuickSizeFluxNode": _HELP_TEXT
+}
