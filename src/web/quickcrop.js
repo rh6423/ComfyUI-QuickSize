@@ -356,92 +356,93 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
   });
 })();
 // --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
-import { app } from "/scripts/app.js";
+// --- QuickSize per-node HELP hook (title-bar "?" button) ---------------------
+// (No second import here—using the same `app` imported at the top.)
 
-app.registerExtension({
-  name: "QuickSize.Help",
-  beforeRegisterNodeDef(nodeType, nodeData) {
-    const HELPABLE = new Set([
-      "QuickSizeFluxNode",
-      "QuickCropNode",
-      // add others: "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
-    ]);
-    if (!HELPABLE.has(nodeData?.name)) return;
+(function () {
+  app.registerExtension({
+    name: "QuickSize.Help",
+    beforeRegisterNodeDef(nodeType, nodeData) {
+      // Match by class name or comfyClass for safety across builds
+      const key = nodeData?.name || nodeData?.comfyClass;
+      const HELPABLE = new Set([
+        "QuickSizeFluxNode",
+        "QuickCropNode",
+        // add others: "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
+      ]);
+      if (!HELPABLE.has(key)) return;
 
-    const className = nodeData.name;
-    const docUrl = `/extensions/ComfyUI-QuickSize/docs/${className}.md`;
+      const docUrl = `/extensions/ComfyUI-QuickSize/docs/${key}.md`;
 
-    // Context menu item
-    const prevMenu = nodeType.prototype.getExtraMenuOptions;
-    nodeType.prototype.getExtraMenuOptions = function (_, options) {
-      prevMenu?.call(this, _, options);
-      options.push({ content: "Help…", callback: () => openHelp(docUrl, this) });
-    };
+      // Add “Help…” to right-click menu
+      const prevMenu = nodeType.prototype.getExtraMenuOptions;
+      nodeType.prototype.getExtraMenuOptions = function (_, options) {
+        prevMenu?.call(this, _, options);
+        options.push({ content: "Help…", callback: () => openHelp(docUrl, this) });
+      };
 
-    // Utility: title height
-    function getTitleHeight() {
-      // LiteGraph usually exposes NODE_TITLE_HEIGHT; fall back to 24
-      const LG = window.LiteGraph;
-      return (LG && LG.NODE_TITLE_HEIGHT) ? LG.NODE_TITLE_HEIGHT : 24;
-    }
-
-    // Draw "?" in the title bar (top-right)
-    const prevDraw = nodeType.prototype.onDrawForeground;
-    nodeType.prototype.onDrawForeground = function (ctx) {
-      prevDraw?.call(this, ctx);
-
-      const th = getTitleHeight();
-      const r = 8;               // icon radius
-      const pad = 6;             // right padding
-      const x = this.size[0] - (r + pad);
-      const y = Math.floor(th / 2);
-
-      // Only draw when not collapsed; collapsed nodes still have a header though
-      ctx.save();
-      // background circle
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = "#3aa0ff";
-      ctx.fill();
-      // question mark
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 12px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("?", x, y + 0.5);
-      ctx.restore();
-
-      // store a hit zone strictly inside the title bar
-      this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url: docUrl };
-    };
-
-    // Click handler: only fire if clicking inside the title bar hit zone
-    const prevMouseDown = nodeType.prototype.onMouseDown;
-    nodeType.prototype.onMouseDown = function (e, pos, graphcanvas) {
-      const hit = this.__qs_help_hit;
-      if (hit) {
-        const [px, py] = pos; // local to node
-        if (px >= hit.x && px <= hit.x + hit.w && py >= hit.y && py <= hit.h) {
-          openHelp(hit.url, this);
-          return true; // consume event
-        }
+      // Title height helper
+      function getTitleHeight() {
+        const LG = window.LiteGraph;
+        return (LG && LG.NODE_TITLE_HEIGHT) ? LG.NODE_TITLE_HEIGHT : 24;
       }
-      return prevMouseDown ? prevMouseDown.call(this, e, pos, graphcanvas) : false;
-    };
-  },
-});
 
-// Prefer built-in Docs panel if present; fall back to opening the MD file
-function openHelp(url, node) {
-  try {
-    if (app?.ui?.showNodeHelp && node) {
-      const gc = app.canvas;
-      if (gc && !node.selected) gc.selectNode(node, false);
-      app.ui.showNodeHelp(); // opens right-side Docs pane
-    } else {
+      // Draw a clickable "?" in the node title bar (top-right)
+      const prevDraw = nodeType.prototype.onDrawForeground;
+      nodeType.prototype.onDrawForeground = function (ctx) {
+        prevDraw?.call(this, ctx);
+
+        const th = getTitleHeight();
+        const r = 8;         // icon radius
+        const pad = 6;       // right padding
+        const x = this.size[0] - (r + pad);
+        const y = Math.floor(th / 2);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = "#3aa0ff";
+        ctx.fill();
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 12px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("?", x, y + 0.5);
+        ctx.restore();
+
+        // Click hit zone strictly in the title bar
+        this.__qs_help_hit = { x: x - r, y: 0, w: r * 2 + pad, h: th, url: docUrl };
+      };
+
+      // Handle clicks in the title bar
+      const prevMouseDown = nodeType.prototype.onMouseDown;
+      nodeType.prototype.onMouseDown = function (e, pos, graphcanvas) {
+        const hit = this.__qs_help_hit;
+        if (hit) {
+          const [px, py] = pos; // local coords
+          if (px >= hit.x && px <= hit.x + hit.w && py >= hit.y && py <= hit.h) {
+            openHelp(hit.url, this);
+            return true; // consume
+          }
+        }
+        return prevMouseDown ? prevMouseDown.call(this, e, pos, graphcanvas) : false;
+      };
+    },
+  });
+
+  // Prefer built-in Docs pane; fallback to opening the MD file
+  function openHelp(url, node) {
+    try {
+      if (app?.ui?.showNodeHelp && node) {
+        const gc = app.canvas;
+        if (gc && !node.selected) gc.selectNode(node, false);
+        app.ui.showNodeHelp();
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch {
       window.open(url, "_blank");
     }
-  } catch {
-    window.open(url, "_blank");
   }
-}
+})();
