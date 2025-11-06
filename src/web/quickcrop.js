@@ -355,3 +355,89 @@ import { api } from "/scripts/api.js";       // for future use if you add custom
     },
   });
 })();
+// --- QuickSize per-node HELP hook -------------------------------------------
+app.registerExtension({
+  name: "QuickSize.Help",
+  init(app_) {},
+  async setup() {},
+  beforeRegisterNodeDef(nodeType, nodeData, app_) {
+    const HELPABLE = new Set([
+      "QuickSizeFluxNode",
+      "QuickCropNode",
+      // "QuickSizeSDXLNode", "QuickSizeSD15Node", "QuickSizeWANNode", "QuickSizeQwenNode"
+    ]);
+    if (!HELPABLE.has(nodeData?.name)) return;
+
+    const className = nodeData.name;
+    const docUrl = `/extensions/ComfyUI-QuickSize/docs/${className}.md`;
+
+    // Add “Help…” to the node's context (right-click) menu
+    const prevMenu = nodeType.prototype.getExtraMenuOptions;
+    nodeType.prototype.getExtraMenuOptions = function(_, options) {
+      if (prevMenu) prevMenu.call(this, _, options);
+      options.push({
+        content: "Help…",
+        callback: () => openHelp(docUrl, this)
+      });
+    };
+
+    // Draw a small clickable “?” in the node header (top-right)
+    const prevDraw = nodeType.prototype.onDrawForeground;
+    nodeType.prototype.onDrawForeground = function(ctx) {
+      if (prevDraw) prevDraw.call(this, ctx);
+      const r = 8; // radius of hit area
+      const x = this.size[0] - 14, y = 14;
+
+      // circle
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = "#3aa0ff";
+      ctx.fill();
+      // question mark
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 12px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("?", x, y + 0.5);
+      ctx.restore();
+
+      // store clickable rect for hit test
+      this.__qs_help_hit = {x: x - r, y: y - r, w: r * 2, h: r * 2, url: docUrl};
+    };
+
+    // Click handler for the header “?”
+    const prevMouseDown = nodeType.prototype.onMouseDown;
+    nodeType.prototype.onMouseDown = function(e, pos, graphcanvas) {
+      if (this.__qs_help_hit) {
+        const [hx, hy, hw, hh] = [this.__qs_help_hit.x, this.__qs_help_hit.y, this.__qs_help_hit.w, this.__qs_help_hit.h];
+        if (pos[0] >= hx && pos[0] <= hx + hw && pos[1] >= hy && pos[1] <= hy + hh) {
+          openHelp(this.__qs_help_hit.url, this);
+          return true; // consume event
+        }
+      }
+      if (prevMouseDown) return prevMouseDown.call(this, e, pos, graphcanvas);
+      return false;
+    };
+  },
+});
+
+// Prefer opening the built-in Docs panel if present; fallback to new tab
+function openHelp(url, node) {
+  try {
+    // New UI: show the “Docs” panel for the selected node if available
+    if (app?.ui?.showNodeHelp && node) {
+      // Ensure the node is selected so help panel binds to it
+      const graphcanvas = app.canvas;
+      if (graphcanvas && !node.selected) {
+        graphcanvas.selectNode(node, false);
+      }
+      app.ui.showNodeHelp();
+    } else {
+      window.open(url, "_blank");
+    }
+  } catch (err) {
+    console.warn("[QuickSize.Help] Docs panel not available, opening MD:", err);
+    window.open(url, "_blank");
+  }
+}
